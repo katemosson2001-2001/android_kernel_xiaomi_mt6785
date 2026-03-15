@@ -32,9 +32,9 @@ jobs:
 
       - name: Download Clang toolchain
         run: |
-          [ -d toolchain/clang ] || git clone --depth=1 -b 14 \
+          [ -d toolchain/clang ] || git clone --depth=1 \
             https://gitlab.com/ThankYouMario/android_prebuilts_clang-standalone \
-            toolchain/clang
+            -b 21 toolchain/clang
 
       - name: Download GCC toolchain
         run: |
