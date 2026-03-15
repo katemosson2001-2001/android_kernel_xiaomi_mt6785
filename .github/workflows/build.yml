@@ -75,11 +75,8 @@ jobs:
           mkdir boot_work
           cd boot_work
           ../magiskboot unpack ../boot_original.img
-          if [ -f ../kernel/out/arch/arm64/boot/Image.gz-dtb ]; then
-            cp ../kernel/out/arch/arm64/boot/Image.gz-dtb kernel
-          else
-            cp ../kernel/out/arch/arm64/boot/Image.gz kernel
-          fi
+          # НАДО (правильно):
+          cp ../kernel/out/arch/arm64/boot/Image.gz kernel
           ../magiskboot repack ../boot_original.img
           mv new-boot.img ../boot_new.img
 
