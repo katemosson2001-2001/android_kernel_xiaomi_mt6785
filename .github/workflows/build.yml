@@ -20,4 +20,3 @@ jobs:
           android-version: 14
           aosp-clang-version: r450784d
           bootimg-url: https://mirrorbits.lineageos.org/full/rosemary/20260311/boot.img
-          bootimg-with-dtb: false
