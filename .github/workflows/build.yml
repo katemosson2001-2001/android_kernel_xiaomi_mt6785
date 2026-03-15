@@ -4,19 +4,77 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-kernel:
+  build:
     name: Build Kernel
     runs-on: ubuntu-22.04
+
     steps:
-      - name: Build
-        uses: dabao1955/kernel_build_action@main
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git make bc bison flex \
+            libssl-dev libelf-dev python3 lz4 zstd wget unzip
+
+      - name: Clone kernel source
+        run: |
+          git clone --depth=1 -b lineage-23.2 \
+            https://github.com/katemosson2001-2001/android_kernel_xiaomi_mt6785 \
+            kernel
+
+      - name: Download Clang toolchain
+        run: |
+          git clone --depth=1 -b 14 \
+            https://gitlab.com/ThankYouMario/android_prebuilts_clang-standalone \
+            toolchain/clang
+
+      - name: Download GCC toolchain
+        run: |
+          git clone --depth=1 \
+            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
+            toolchain/gcc64
+          git clone --depth=1 \
+            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
+            toolchain/gcc32
+
+      - name: Build kernel
+        run: |
+          export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
+          cd kernel
+          make O=out ARCH=arm64 rosemary_defconfig
+          make O=out ARCH=arm64 \
+            CC=clang \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            -j$(nproc)
+
+      - name: Download original boot.img from LOS 23.2
+        run: |
+          wget -O boot_original.img \
+            https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
+
+      - name: Get magiskboot (инструмент для работы с boot.img, не устанавливает Magisk)
+        run: |
+          wget -O Magisk.apk \
+            https://github.com/topjohnwu/Magisk/releases/download/v28.0/Magisk-v28.0.apk
+          unzip Magisk.apk lib/x86_64/libmagiskboot.so
+          mv lib/x86_64/libmagiskboot.so magiskboot
+          chmod +x magiskboot
+
+      - name: Заменить ядро в boot.img
+        run: |
+          mkdir boot_work
+          cd boot_work
+          ../magiskboot unpack ../boot_original.img
+          if [ -f ../kernel/out/arch/arm64/boot/Image.gz-dtb ]; then
+            cp ../kernel/out/arch/arm64/boot/Image.gz-dtb kernel
+          else
+            cp ../kernel/out/arch/arm64/boot/Image.gz kernel
+          fi
+          ../magiskboot repack ../boot_original.img ../boot_new.img
+
+      - name: Upload boot.img
+        uses: actions/upload-artifact@v4
         with:
-          kernel-url: https://github.com/katemosson2001-2001/android_kernel_xiaomi_mt6785
-          kernel-branch: lineage-23.2
-          config: rosemary_defconfig
-          arch: arm64
-          aosp-gcc: true
-          aosp-clang: true
-          android-version: 14
-          aosp-clang-version: r383902
-          bootimg-url: https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
+          name: boot-rosemary
+          path: boot_work/boot_new.img
