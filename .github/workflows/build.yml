@@ -18,5 +18,5 @@ jobs:
           aosp-gcc: true
           aosp-clang: true
           android-version: 14
-          aosp-clang-version: r450784d
+          aosp-clang-version: r383902
           bootimg-url: https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
