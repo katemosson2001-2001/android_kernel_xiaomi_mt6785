@@ -21,18 +21,27 @@ jobs:
             https://github.com/katemosson2001-2001/android_kernel_xiaomi_mt6785 \
             kernel
 
+      - name: Cache toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            toolchain/clang
+            toolchain/gcc64
+            toolchain/gcc32
+          key: toolchains-v1
+
       - name: Download Clang toolchain
         run: |
-          git clone --depth=1 -b 14 \
+          [ -d toolchain/clang ] || git clone --depth=1 -b 14 \
             https://gitlab.com/ThankYouMario/android_prebuilts_clang-standalone \
             toolchain/clang
 
       - name: Download GCC toolchain
         run: |
-          git clone --depth=1 \
+          [ -d toolchain/gcc64 ] || git clone --depth=1 \
             https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
             toolchain/gcc64
-          git clone --depth=1 \
+          [ -d toolchain/gcc32 ] || git clone --depth=1 \
             https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
             toolchain/gcc32
 
@@ -53,7 +62,7 @@ jobs:
           wget -O boot_original.img \
             https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
 
-      - name: Get magiskboot (инструмент для работы с boot.img, не устанавливает Magisk)
+      - name: Get magiskboot
         run: |
           wget -O Magisk.apk \
             https://github.com/topjohnwu/Magisk/releases/download/v28.0/Magisk-v28.0.apk
@@ -61,7 +70,7 @@ jobs:
           mv lib/x86_64/libmagiskboot.so magiskboot
           chmod +x magiskboot
 
-      - name: Заменить ядро в boot.img
+      - name: Repack boot.img
         run: |
           mkdir boot_work
           cd boot_work
@@ -71,10 +80,11 @@ jobs:
           else
             cp ../kernel/out/arch/arm64/boot/Image.gz kernel
           fi
-          ../magiskboot repack ../boot_original.img ../boot_new.img
+          ../magiskboot repack ../boot_original.img
+          mv new-boot.img ../boot_new.img
 
       - name: Upload boot.img
         uses: actions/upload-artifact@v4
         with:
           name: boot-rosemary
-          path: boot_work/boot_new.img
+          path: boot_new.img
