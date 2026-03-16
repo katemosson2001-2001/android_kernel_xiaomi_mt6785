@@ -63,6 +63,12 @@ jobs:
         run: |
           cd kernel/out/arch/arm64/boot
           cat Image.gz-dtb | gunzip -c 2>/dev/null | strings | grep -m1 "Linux version" || true
+
+      - name: Debug kernel output
+        run: |
+          ls -la kernel/out/arch/arm64/boot/Image* || true
+          ls -la kernel/out/arch/arm64/boot/dts/mediatek/*.dtb || true
+          cat kernel/out/arch/arm64/boot/../../../.config | grep "BUILD_ARM64_APPENDED_DTB" || true
           
       - name: Download original boot.img from LOS 23.2
         run: |
