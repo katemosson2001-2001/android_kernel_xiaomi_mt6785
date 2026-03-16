@@ -49,6 +49,7 @@ jobs:
         run: |
           export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
           cd kernel
+          find . -name "localversion*" -exec truncate -s 0 {} \;
           make O=out ARCH=arm64 rosemary_defconfig
           make O=out ARCH=arm64 \
             CC=clang \
