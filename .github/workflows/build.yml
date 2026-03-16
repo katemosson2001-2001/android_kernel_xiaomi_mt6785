@@ -88,9 +88,14 @@ jobs:
           mkdir boot_work
           cd boot_work
           ../magiskboot unpack ../boot_original.img
-          # НАДО (правильно):
+          echo "=== После unpack ==="
+          ls -la
           cp ../kernel/out/arch/arm64/boot/Image.gz kernel
+          echo "=== После cp Image.gz ==="
+          ls -la kernel
           ../magiskboot repack ../boot_original.img
+          echo "=== После repack ==="
+          ls -la new-boot.img
           mv new-boot.img ../boot_new.img
 
       - name: Upload boot.img
