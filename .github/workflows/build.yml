@@ -90,7 +90,7 @@ jobs:
           ../magiskboot unpack ../boot_original.img
           echo "=== После unpack ==="
           ls -la
-          cp ../kernel/out/arch/arm64/boot/Image.gz kernel
+          cp ../kernel/out/arch/arm64/boot/Image kernel
           echo "=== После cp Image.gz ==="
           ls -la kernel
           ../magiskboot repack ../boot_original.img
