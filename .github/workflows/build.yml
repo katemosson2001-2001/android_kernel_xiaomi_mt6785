@@ -83,7 +83,7 @@ jobs:
           cd boot_work
           ../magiskboot unpack ../boot_original.img
           # НАДО (правильно):
-          cp ../kernel/out/arch/arm64/boot/Image.gz-dtb kernel
+          cp ../kernel/out/arch/arm64/boot/Image.gz kernel
           ../magiskboot repack ../boot_original.img
           mv new-boot.img ../boot_new.img
 
