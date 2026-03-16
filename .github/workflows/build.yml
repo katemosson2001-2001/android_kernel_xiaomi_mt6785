@@ -1,75 +1,19 @@
-name: Build Kernel rosemary
+name: Test magiskboot repack
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Kernel
+    name: Test repack
     runs-on: ubuntu-22.04
 
     steps:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y git make bc bison flex \
-            libssl-dev libelf-dev python3 lz4 zstd wget unzip
+          sudo apt-get install -y wget unzip
 
-      - name: Clone kernel source
-        run: |
-          git clone --depth=1 -b lineage-23.2 \
-            https://github.com/katemosson2001-2001/android_kernel_xiaomi_mt6785 \
-            kernel
-
-      - name: Cache toolchains
-        uses: actions/cache@v4
-        with:
-          path: |
-            toolchain/clang
-            toolchain/gcc64
-            toolchain/gcc32
-          key: toolchains-v1
-
-      - name: Download Clang toolchain
-        run: |
-          [ -d toolchain/clang ] || git clone --depth=1 \
-            https://gitlab.com/ThankYouMario/android_prebuilts_clang-standalone \
-            -b 21 toolchain/clang
-
-      - name: Download GCC toolchain
-        run: |
-          [ -d toolchain/gcc64 ] || git clone --depth=1 \
-            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
-            toolchain/gcc64
-          [ -d toolchain/gcc32 ] || git clone --depth=1 \
-            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
-            toolchain/gcc32
-
-      - name: Build kernel
-        run: |
-          export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
-          cd kernel
-          find . -name "localversion*" -exec truncate -s 0 {} \;
-          make O=out ARCH=arm64 rosemary_defconfig
-          make O=out ARCH=arm64 \
-            CC=clang \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
-            LOCALVERSION="" \
-            -j$(nproc)
-
-      - name: Check kernel version
-        run: |
-          cd kernel/out/arch/arm64/boot
-          cat Image.gz-dtb | gunzip -c 2>/dev/null | strings | grep -m1 "Linux version" || true
-
-      - name: Debug kernel output
-        run: |
-          ls -la kernel/out/arch/arm64/boot/Image* || true
-          ls -la kernel/out/arch/arm64/boot/dts/mediatek/*.dtb || true
-          cat kernel/out/arch/arm64/boot/../../../.config | grep "BUILD_ARM64_APPENDED_DTB" || true
-          
       - name: Download original boot.img from LOS 23.2
         run: |
           wget -O boot_original.img \
@@ -83,19 +27,12 @@ jobs:
           mv lib/x86_64/libmagiskboot.so magiskboot
           chmod +x magiskboot
 
-      - name: Repack boot.img
+      - name: Repack boot.img without changes
         run: |
           mkdir boot_work
           cd boot_work
           ../magiskboot unpack ../boot_original.img
-          echo "=== После unpack ==="
-          ls -la
-          cp ../kernel/out/arch/arm64/boot/Image kernel
-          echo "=== После cp Image.gz ==="
-          ls -la kernel
           ../magiskboot repack ../boot_original.img
-          echo "=== После repack ==="
-          ls -la new-boot.img
           mv new-boot.img ../boot_new.img
 
       - name: Upload boot.img
