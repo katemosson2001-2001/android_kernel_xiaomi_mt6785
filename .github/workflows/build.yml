@@ -59,6 +59,11 @@ jobs:
             LOCALVERSION="" \
             -j$(nproc)
 
+      - name: Verify kernel binary
+        run: |
+          file kernel/out/arch/arm64/boot/Image
+          hexdump -C kernel/out/arch/arm64/boot/Image | head -4
+
       - name: Check kernel version
         run: |
           cd kernel/out/arch/arm64/boot
