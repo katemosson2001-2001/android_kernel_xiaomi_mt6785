@@ -59,8 +59,9 @@ jobs:
 
       - name: Check kernel version
         run: |
-          strings kernel/out/arch/arm64/boot/Image.gz-dtb | grep "Linux version"
-
+          cd kernel/out/arch/arm64/boot
+          cat Image.gz-dtb | gunzip -c 2>/dev/null | strings | grep -m1 "Linux version" || true
+          
       - name: Download original boot.img from LOS 23.2
         run: |
           wget -O boot_original.img \
