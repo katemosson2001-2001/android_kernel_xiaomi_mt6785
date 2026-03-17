@@ -41,21 +41,16 @@ jobs:
         run: |
           if [ ! -d toolchain/clang ]; then
             mkdir -p toolchain
-            wget -q --show-progress -O clang.tar.xz \
-              https://github.com/nicholaschum/aosp-clang/releases/download/clang-r563880c/clang-r563880c.tar.zst \
-              && { mkdir toolchain/clang && tar -I zstd -xf clang-r563880c.tar.zst -C toolchain/clang && rm clang-r563880c.tar.zst; } \
-              || {
-                echo "=== Пробуем upstream LLVM ==="
-                rm -f clang.tar.xz clang-r563880c.tar.zst
-                wget -q --show-progress -O clang.tar.xz \
-                  https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/clang+llvm-19.1.7-x86_64-linux-gnu-ubuntu-22.04.tar.xz
-                tar xf clang.tar.xz
-                mv clang+llvm-19.1.7-x86_64-linux-gnu-ubuntu-22.04 toolchain/clang
-                rm clang.tar.xz
-              }
+            echo "=== Скачиваем AOSP clang 21.0.0 (r563880) ==="
+            wget -q --show-progress -O clang.tar.gz \
+              "https://gitea.com/GustavoMends/r563880/archive/main.tar.gz"
+            mkdir toolchain/clang
+            tar xf clang.tar.gz -C toolchain/clang --strip-components=1
+            rm clang.tar.gz
           fi
           echo "=== Версия Clang ==="
           toolchain/clang/bin/clang --version | head -2
+          
       - name: Download GCC toolchain
         run: |
           if [ ! -d toolchain/gcc64 ]; then
