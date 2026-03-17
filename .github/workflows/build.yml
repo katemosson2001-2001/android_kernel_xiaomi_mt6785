@@ -107,6 +107,34 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             olddefconfig
 
+      - name: Diagnose size difference
+        run: |
+          cd kernel
+
+          echo "=== DEBUG_INFO (главная причина раздутия) ==="
+          grep "CONFIG_DEBUG_INFO" out/.config
+
+          echo ""
+          echo "=== Количество =y и =m опций ==="
+          echo -n "Built-in (=y): "
+          grep -c "=y" out/.config
+          echo -n "Modules (=m): "
+          grep -c "=m" out/.config
+
+          echo ""
+          echo "=== Ключевые опции размера ==="
+          grep -E "CONFIG_DEBUG_INFO|CONFIG_DEBUG_KERNEL|CONFIG_KASAN|CONFIG_KCOV|CONFIG_FTRACE|CONFIG_FUNCTION_TRACER|CONFIG_UNUSED_SYMBOLS|CONFIG_KALLSYMS_ALL" out/.config
+
+          echo ""
+          echo "=== Попробуем собрать rosemary_defconfig без изменений ==="
+          make O=out_ref ARCH=arm64 rosemary_defconfig 2>/dev/null
+          echo -n "rosemary =y: "
+          grep -c "=y" out_ref/.config
+          echo -n "rosemary =m: "
+          grep -c "=m" out_ref/.config
+          grep "CONFIG_DEBUG_INFO" out_ref/.config
+          rm -rf out_ref
+
       # ─── Проверка конфигурации ───
       - name: Verify config
         run: |
