@@ -199,9 +199,15 @@ jobs:
           rm -rf boot_work
           mkdir boot_work && cd boot_work
           ../magiskboot unpack ../boot_original.img
+
           echo "Оригинальный kernel: $(stat -c%s kernel) байт"
           cp ../kernel/out/arch/arm64/boot/Image kernel
           echo "Новый kernel: $(stat -c%s kernel) байт"
+
+          echo "Оригинальный dtb: $(stat -c%s dtb) байт"
+          cp ../kernel/out/arch/arm64/boot/dts/mediatek/mt6785.dtb dtb
+          echo "Новый dtb: $(stat -c%s dtb) байт"
+
           ../magiskboot repack ../boot_original.img
           mv new-boot.img ../boot_new.img
       
