@@ -41,23 +41,21 @@ jobs:
         run: |
           if [ ! -d toolchain/clang ]; then
             mkdir -p toolchain
-            # Скачиваем AOSP clang-r563880c через зеркало
-            git clone --depth=1 \
-              https://gitlab.com/crdroidandroid/android_prebuilts_clang_host_linux-x86_clang-r563880c.git \
-              toolchain/clang \
+            wget -q --show-progress -O clang.tar.xz \
+              https://github.com/nicholaschum/aosp-clang/releases/download/clang-r563880c/clang-r563880c.tar.zst \
+              && { mkdir toolchain/clang && tar -I zstd -xf clang-r563880c.tar.zst -C toolchain/clang && rm clang-r563880c.tar.zst; } \
               || {
-                echo "=== Зеркало недоступно, пробуем альтернативу ==="
-                rm -rf toolchain/clang
-                git clone --depth=1 -b main \
-                  https://github.com/AkaneTan/aosp-clang.git \
-                  toolchain/clang-repo
-                mv toolchain/clang-repo/clang-r563880c toolchain/clang
-                rm -rf toolchain/clang-repo
+                echo "=== Пробуем upstream LLVM ==="
+                rm -f clang.tar.xz clang-r563880c.tar.zst
+                wget -q --show-progress -O clang.tar.xz \
+                  https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/clang+llvm-19.1.7-x86_64-linux-gnu-ubuntu-22.04.tar.xz
+                tar xf clang.tar.xz
+                mv clang+llvm-19.1.7-x86_64-linux-gnu-ubuntu-22.04 toolchain/clang
+                rm clang.tar.xz
               }
           fi
           echo "=== Версия Clang ==="
           toolchain/clang/bin/clang --version | head -2
-
       - name: Download GCC toolchain
         run: |
           if [ ! -d toolchain/gcc64 ]; then
