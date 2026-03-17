@@ -7,20 +7,26 @@ jobs:
   build:
     name: Build Kernel
     runs-on: ubuntu-22.04
+    timeout-minutes: 120
 
     steps:
+
+      # ─── Установка необходимых программ ───
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git make bc bison flex \
-            libssl-dev libelf-dev python3 lz4 zstd wget unzip
+            libssl-dev libelf-dev python3 lz4 zstd wget unzip \
+            device-tree-compiler
 
+      # ─── Скачивание исходников ядра ───
       - name: Clone kernel source
         run: |
           git clone --depth=1 -b lineage-23.2 \
             https://github.com/katemosson2001-2001/android_kernel_xiaomi_mt6785 \
             kernel
 
+      # ─── Кэширование тулчейнов (ускоряет повторные сборки) ───
       - name: Cache toolchains
         uses: actions/cache@v4
         with:
@@ -28,81 +34,211 @@ jobs:
             toolchain/clang
             toolchain/gcc64
             toolchain/gcc32
-          key: toolchains-v1
+          key: toolchains-v2
 
+      # ─── Скачивание компиляторов ───
       - name: Download Clang toolchain
         run: |
-          [ -d toolchain/clang ] || git clone --depth=1 \
-            https://gitlab.com/ThankYouMario/android_prebuilts_clang-standalone \
-            -b 21 toolchain/clang
+          if [ ! -d toolchain/clang ]; then
+            git clone --depth=1 \
+              https://gitlab.com/ThankYouMario/android_prebuilts_clang-standalone \
+              -b 21 toolchain/clang
+          fi
+          echo "=== Версия Clang ==="
+          toolchain/clang/bin/clang --version | head -2
 
       - name: Download GCC toolchain
         run: |
-          [ -d toolchain/gcc64 ] || git clone --depth=1 \
-            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
-            toolchain/gcc64
-          [ -d toolchain/gcc32 ] || git clone --depth=1 \
-            https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
-            toolchain/gcc32
+          if [ ! -d toolchain/gcc64 ]; then
+            git clone --depth=1 \
+              https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9 \
+              toolchain/gcc64
+          fi
+          if [ ! -d toolchain/gcc32 ]; then
+            git clone --depth=1 \
+              https://github.com/LineageOS/android_prebuilts_gcc_linux-x86_arm_arm-linux-androideabi-4.9 \
+              toolchain/gcc32
+          fi
 
+      # ─── Подготовка конфигурации ядра ───
+      - name: Configure kernel
+        run: |
+          export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
+          cd kernel
+
+          # Очистить localversion чтобы не добавлялся суффикс -dirty
+          find . -name "localversion*" -exec truncate -s 0 {} \;
+
+          # Выбрать конфиг: device_defconfig (с телефона) или rosemary_defconfig (из исходников)
+          if [ -f arch/arm64/configs/device_defconfig ]; then
+            echo ">>> Используем device_defconfig (снятый с телефона)"
+            DEFCONFIG=device_defconfig
+          else
+            echo ">>> device_defconfig не найден, используем rosemary_defconfig"
+            DEFCONFIG=rosemary_defconfig
+          fi
+
+          # Создать базовую конфигурацию
+          make O=out ARCH=arm64 ${DEFCONFIG}
+
+          # Включить драйвер USB Ethernet RTL8152 и его зависимости
+          scripts/config --file out/.config -e CONFIG_USB_RTL8152
+          scripts/config --file out/.config -e CONFIG_USB_NET_DRIVERS
+          scripts/config --file out/.config -e CONFIG_MII
+          scripts/config --file out/.config -e CONFIG_USB_USBNET
+
+          # КРИТИЧНО: отключить appended DTB — устройство использует отдельный DTB
+          scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE
+          scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_GZIP
+
+          # Пересчитать все зависимости
+          make O=out ARCH=arm64 \
+            CC=clang \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            olddefconfig
+
+      # ─── Проверка конфигурации ───
+      - name: Verify config
+        run: |
+          cd kernel
+          echo "=== Проверка ключевых опций ==="
+          echo -n "RTL8152: "
+          grep -c "CONFIG_USB_RTL8152=y" out/.config && echo "OK" || echo "ОШИБКА!"
+          echo -n "APPENDED_DTB: "
+          grep "CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE" out/.config || echo "Отключена (OK)"
+          echo -n "LOCALVERSION: "
+          grep "CONFIG_LOCALVERSION=" out/.config
+
+      # ─── Сборка ядра ───
       - name: Build kernel
         run: |
           export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
           cd kernel
-          find . -name "localversion*" -exec truncate -s 0 {} \;
-          make O=out ARCH=arm64 rosemary_defconfig
           make O=out ARCH=arm64 \
             CC=clang \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             LOCALVERSION="" \
-            -j$(nproc)
+            -j$(nproc) 2>&1 | tail -30
 
-      - name: Verify kernel binary
+      # ─── Проверка результатов сборки ───
+      - name: Verify build outputs
         run: |
-          file kernel/out/arch/arm64/boot/Image
-          hexdump -C kernel/out/arch/arm64/boot/Image | head -4
+          cd kernel
+          echo "=== Собранный Image ==="
+          ls -lh out/arch/arm64/boot/Image
+          file out/arch/arm64/boot/Image
 
-      - name: Check kernel version
-        run: |
-          cd kernel/out/arch/arm64/boot
-          cat Image.gz-dtb | gunzip -c 2>/dev/null | strings | grep -m1 "Linux version" || true
+          echo ""
+          echo "=== Версия ядра в бинарнике ==="
+          strings out/arch/arm64/boot/Image | grep "Linux version" | head -1
 
-      - name: Debug kernel output
+          echo ""
+          echo "=== DTB файлы ==="
+          find out/arch/arm64/boot/dts -name "*.dtb" 2>/dev/null | head -20
+          find out/arch/arm64/boot/dts -name "*.dtb" 2>/dev/null | wc -l
+          echo "DTB файлов найдено"
+
+      # ─── Сборка объединённого DTB ───
+      - name: Build combined DTB
         run: |
-          ls -la kernel/out/arch/arm64/boot/Image* || true
-          ls -la kernel/out/arch/arm64/boot/dts/mediatek/*.dtb || true
-          cat kernel/out/arch/arm64/boot/../../../.config | grep "BUILD_ARM64_APPENDED_DTB" || true
-          
-      - name: Download original boot.img from LOS 23.2
+          cd kernel
+
+          # Найти DTB для MT6785
+          DTB_FILES=$(find out/arch/arm64/boot/dts/mediatek -name "mt6785*.dtb" 2>/dev/null)
+
+          if [ -z "$DTB_FILES" ]; then
+            # Попробовать без подпапки mediatek
+            DTB_FILES=$(find out/arch/arm64/boot/dts -name "mt6785*.dtb" 2>/dev/null)
+          fi
+
+          if [ -z "$DTB_FILES" ]; then
+            echo "ОШИБКА: DTB файлы не найдены!"
+            echo "Все .dtb файлы в дереве сборки:"
+            find out/ -name "*.dtb" 2>/dev/null
+            exit 1
+          fi
+
+          echo "Найденные DTB файлы:"
+          echo "$DTB_FILES"
+
+          # Объединить все DTB в один файл
+          cat $DTB_FILES > ../combined_dtb
+
+          echo "Размер combined_dtb: $(stat -c%s ../combined_dtb) байт"
+          echo "(Оригинальный DTB: ~168 КБ = ~172032 байт)"
+
+      # ─── Скачивание оригинального boot.img ───
+      - name: Download original boot.img
         run: |
-          wget -O boot_original.img \
+          wget -q --show-progress -O boot_original.img \
             https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
+          echo "Размер: $(stat -c%s boot_original.img) байт"
 
+      # ─── Скачивание magiskboot ───
       - name: Get magiskboot
         run: |
-          wget -O Magisk.apk \
+          wget -q -O Magisk.apk \
             https://github.com/topjohnwu/Magisk/releases/download/v28.0/Magisk-v28.0.apk
-          unzip Magisk.apk lib/x86_64/libmagiskboot.so
+          unzip -q Magisk.apk lib/x86_64/libmagiskboot.so
           mv lib/x86_64/libmagiskboot.so magiskboot
           chmod +x magiskboot
 
+      # ─── Распаковка и пересборка boot.img ───
       - name: Repack boot.img
         run: |
-          mkdir boot_work
-          cd boot_work
+          mkdir boot_work && cd boot_work
+
+          echo "=== Распаковка оригинального boot.img ==="
           ../magiskboot unpack ../boot_original.img
-          echo "=== После unpack ==="
-          ls -la
+          echo ""
+          echo "--- Оригинальная структура ---"
+          ls -lh
+          echo ""
+
+          # Сохранить размеры оригинала для сравнения
+          ORIG_KERNEL_SIZE=$(stat -c%s kernel)
+          ORIG_DTB_SIZE=$(stat -c%s dtb 2>/dev/null || echo "0")
+          echo "Оригинальный kernel: ${ORIG_KERNEL_SIZE} байт"
+          echo "Оригинальный dtb: ${ORIG_DTB_SIZE} байт"
+
+          # Заменить kernel
           cp ../kernel/out/arch/arm64/boot/Image kernel
-          echo "=== После cp Image.gz ==="
-          ls -la kernel
+          echo ""
+          echo "Новый kernel: $(stat -c%s kernel) байт"
+
+          # Заменить DTB — это КРИТИЧЕСКИ ВАЖНО
+          if [ -f dtb ] && [ -f ../combined_dtb ]; then
+            cp ../combined_dtb dtb
+            echo "Новый dtb: $(stat -c%s dtb) байт"
+            echo "DTB ЗАМЕНЁН"
+          else
+            echo "ВНИМАНИЕ: DTB НЕ ЗАМЕНЁН (файл dtb или combined_dtb не найден)"
+          fi
+
+          echo ""
+          echo "=== Пересборка boot.img ==="
           ../magiskboot repack ../boot_original.img
-          echo "=== После repack ==="
-          ls -la new-boot.img
           mv new-boot.img ../boot_new.img
 
+          echo ""
+          echo "Итоговый boot_new.img: $(stat -c%s ../boot_new.img) байт"
+
+      # ─── Финальная проверка ───
+      - name: Verify final boot.img
+        run: |
+          mkdir -p verify && cd verify
+          ../magiskboot unpack ../boot_new.img
+          echo "=== Содержимое финального boot.img ==="
+          ls -lh
+          echo ""
+          echo "=== Версия ядра ==="
+          strings kernel | grep "Linux version" | head -1
+
+      # ─── Загрузка результата ───
       - name: Upload boot.img
         uses: actions/upload-artifact@v4
         with:
