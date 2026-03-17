@@ -98,7 +98,7 @@ jobs:
           cd kernel
 
           # Очистить localversion чтобы не добавлялся суффикс -dirty
-         git checkout -- .
+          git checkout -- .
 
           # Выбрать конфиг: device_defconfig (с телефона) или rosemary_defconfig (из исходников)
           if [ -f arch/arm64/configs/device_defconfig ]; then
