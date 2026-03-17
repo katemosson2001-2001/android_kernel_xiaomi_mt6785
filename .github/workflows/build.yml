@@ -167,30 +167,55 @@ jobs:
           chmod +x magiskboot
 
       # ─── Распаковка и пересборка boot.img ───
-      - name: Repack boot.img
+      - name: Diagnostic repack
         run: |
           mkdir boot_work && cd boot_work
-
-          echo "=== Распаковка оригинального boot.img ==="
           ../magiskboot unpack ../boot_original.img
-          echo ""
-          echo "--- Оригинальная структура ---"
-          ls -lh
 
-          # Заменяем ТОЛЬКО kernel, DTB оставляем оригинальный
-          echo ""
-          echo "Оригинальный kernel: $(stat -c%s kernel) байт"
-          cp ../kernel/out/arch/arm64/boot/Image kernel
-          echo "Новый kernel: $(stat -c%s kernel) байт"
-          echo ""
-          echo "DTB оставлен оригинальный: $(stat -c%s dtb 2>/dev/null || echo 'нет') байт"
+          echo "=== СРАВНЕНИЕ ЯДЕР ==="
+          echo "Оригинал: $(stat -c%s kernel) байт"
+          xxd kernel | head -5
+          file kernel
 
           echo ""
-          echo "=== Пересборка boot.img ==="
-          ../magiskboot repack ../boot_original.img
-          mv new-boot.img ../boot_new.img
+          NEW_KERNEL="../kernel/out/arch/arm64/boot/Image"
+          echo "Новое:     $(stat -c%s $NEW_KERNEL) байт"
+          xxd $NEW_KERNEL | head -5
+          file $NEW_KERNEL
 
-          echo "Итоговый boot_new.img: $(stat -c%s ../boot_new.img) байт"
+          echo ""
+          echo "=== Первые 16 байт оригинала (hex) ==="
+          od -A x -t x1z -N 64 kernel
+
+          echo ""
+          echo "=== Первые 16 байт нового (hex) ==="
+          od -A x -t x1z -N 64 $NEW_KERNEL
+
+          echo ""
+          echo "=== Проверяем: есть ли Image.gz или Image.gz-dtb ==="
+          ls -lh ../kernel/out/arch/arm64/boot/Image* 2>/dev/null
+
+          echo ""
+          echo "=== Проверяем формат оригинального kernel ==="
+          # Проверим, не содержит ли оригинал DTB в конце
+          ORIG_SIZE=$(stat -c%s kernel)
+          tail -c 1000 kernel | strings | grep -i "dtb\|device.tree\|mediatek\|mt6785" | head -5 || echo "DTB-строк в конце нет"
+
+          echo ""
+          echo "=== Magic bytes оригинала ==="
+          hexdump -C -n 16 kernel
+
+          echo ""
+          echo "=== Magic bytes нового ==="
+          hexdump -C -n 16 $NEW_KERNEL
+
+          echo ""
+          echo "=== Пробуем repack с Image.gz вместо Image ==="
+          if [ -f ../kernel/out/arch/arm64/boot/Image.gz ]; then
+            echo "Image.gz найден: $(stat -c%s ../kernel/out/arch/arm64/boot/Image.gz) байт"
+          else
+            echo "Image.gz НЕ найден"
+          fi
 
       # ─── Финальная проверка ───
       - name: Verify final boot.img
