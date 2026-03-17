@@ -40,9 +40,13 @@ jobs:
       - name: Download Clang toolchain
         run: |
           if [ ! -d toolchain/clang ]; then
-            git clone --depth=1 \
-              https://gitlab.com/ThankYouMario/android_prebuilts_clang-standalone \
-              -b 21 toolchain/clang
+            mkdir -p toolchain/clang
+            cd toolchain/clang
+            wget -q --show-progress -O clang.tar.gz \
+              https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r563880c.tar.gz
+            tar xf clang.tar.gz
+            rm clang.tar.gz
+            cd ../..
           fi
           echo "=== Версия Clang ==="
           toolchain/clang/bin/clang --version | head -2
