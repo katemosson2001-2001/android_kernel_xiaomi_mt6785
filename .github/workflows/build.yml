@@ -152,35 +152,6 @@ jobs:
           find out/arch/arm64/boot/dts -name "*.dtb" 2>/dev/null | wc -l
           echo "DTB файлов найдено"
 
-      # ─── Сборка объединённого DTB ───
-      - name: Build combined DTB
-        run: |
-          cd kernel
-
-          # Найти DTB для MT6785
-          DTB_FILES=$(find out/arch/arm64/boot/dts/mediatek -name "mt6785*.dtb" 2>/dev/null)
-
-          if [ -z "$DTB_FILES" ]; then
-            # Попробовать без подпапки mediatek
-            DTB_FILES=$(find out/arch/arm64/boot/dts -name "mt6785*.dtb" 2>/dev/null)
-          fi
-
-          if [ -z "$DTB_FILES" ]; then
-            echo "ОШИБКА: DTB файлы не найдены!"
-            echo "Все .dtb файлы в дереве сборки:"
-            find out/ -name "*.dtb" 2>/dev/null
-            exit 1
-          fi
-
-          echo "Найденные DTB файлы:"
-          echo "$DTB_FILES"
-
-          # Объединить все DTB в один файл
-          cat $DTB_FILES > ../combined_dtb
-
-          echo "Размер combined_dtb: $(stat -c%s ../combined_dtb) байт"
-          echo "(Оригинальный DTB: ~168 КБ = ~172032 байт)"
-
       # ─── Скачивание оригинального boot.img ───
       - name: Download original boot.img
         run: |
@@ -207,34 +178,20 @@ jobs:
           echo ""
           echo "--- Оригинальная структура ---"
           ls -lh
+
+          # Заменяем ТОЛЬКО kernel, DTB оставляем оригинальный
           echo ""
-
-          # Сохранить размеры оригинала для сравнения
-          ORIG_KERNEL_SIZE=$(stat -c%s kernel)
-          ORIG_DTB_SIZE=$(stat -c%s dtb 2>/dev/null || echo "0")
-          echo "Оригинальный kernel: ${ORIG_KERNEL_SIZE} байт"
-          echo "Оригинальный dtb: ${ORIG_DTB_SIZE} байт"
-
-          # Заменить kernel
+          echo "Оригинальный kernel: $(stat -c%s kernel) байт"
           cp ../kernel/out/arch/arm64/boot/Image kernel
-          echo ""
           echo "Новый kernel: $(stat -c%s kernel) байт"
-
-          # Заменить DTB — это КРИТИЧЕСКИ ВАЖНО
-          if [ -f dtb ] && [ -f ../combined_dtb ]; then
-            cp ../combined_dtb dtb
-            echo "Новый dtb: $(stat -c%s dtb) байт"
-            echo "DTB ЗАМЕНЁН"
-          else
-            echo "ВНИМАНИЕ: DTB НЕ ЗАМЕНЁН (файл dtb или combined_dtb не найден)"
-          fi
+          echo ""
+          echo "DTB оставлен оригинальный: $(stat -c%s dtb 2>/dev/null || echo 'нет') байт"
 
           echo ""
           echo "=== Пересборка boot.img ==="
           ../magiskboot repack ../boot_original.img
           mv new-boot.img ../boot_new.img
 
-          echo ""
           echo "Итоговый boot_new.img: $(stat -c%s ../boot_new.img) байт"
 
       # ─── Финальная проверка ───
