@@ -98,6 +98,15 @@ jobs:
             https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
           echo "Размер: $(stat -c%s boot_original.img) байт"
 
+      # ─── Скачивание magiskboot ───
+      - name: Get magiskboot
+        run: |
+          wget -q -O Magisk.apk \
+            https://github.com/topjohnwu/Magisk/releases/download/v28.0/Magisk-v28.0.apk
+          unzip -q Magisk.apk lib/x86_64/libmagiskboot.so
+          mv lib/x86_64/libmagiskboot.so magiskboot
+          chmod +x magiskboot
+
       - name: Extract original kernel config
         run: |
           cd boot_work 2>/dev/null || {
@@ -186,15 +195,6 @@ jobs:
           find out/arch/arm64/boot/dts -name "*.dtb" 2>/dev/null | head -20
           find out/arch/arm64/boot/dts -name "*.dtb" 2>/dev/null | wc -l
           echo "DTB файлов найдено"
-
-      # ─── Скачивание magiskboot ───
-      - name: Get magiskboot
-        run: |
-          wget -q -O Magisk.apk \
-            https://github.com/topjohnwu/Magisk/releases/download/v28.0/Magisk-v28.0.apk
-          unzip -q Magisk.apk lib/x86_64/libmagiskboot.so
-          mv lib/x86_64/libmagiskboot.so magiskboot
-          chmod +x magiskboot
 
       # ─── Распаковка и пересборка boot.img ───
       - name: Repack boot.img
