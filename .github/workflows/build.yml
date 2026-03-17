@@ -22,9 +22,30 @@ jobs:
       # ─── Скачивание исходников ядра ───
       - name: Clone kernel source
         run: |
-          git clone --depth=1 -b lineage-23.2 \
+          git clone -b lineage-23.2 \
             https://github.com/katemosson2001-2001/android_kernel_xiaomi_mt6785 \
             kernel
+          cd kernel
+          echo "=== HEAD коммит ==="
+          git log --oneline -1
+
+          echo "=== Ищем коммит f0963d4bf79f ==="
+          git log --all --oneline | grep "f0963d4bf79f" || echo "Не найден в shallow clone"
+
+          # Пробуем переключиться на нужный коммит
+          git checkout f0963d4bf79f 2>/dev/null && echo "Переключено на f0963d4bf79f" || {
+            echo "Коммит не найден в shallow clone, скачиваем полную историю..."
+            git fetch --unshallow
+            git checkout f0963d4bf79f && echo "Переключено на f0963d4bf79f" || echo "КОММИТ НЕ НАЙДЕН В РЕПОЗИТОРИИ"
+          }
+
+          echo ""
+          echo "=== Текущий коммит ==="
+          git log --oneline -1
+          echo ""
+          echo "=== EXTRAVERSION в Makefile ==="
+          head -5 Makefile
+          grep "EXTRAVERSION" Makefile | head -3
 
       # ─── Кэширование тулчейнов (ускоряет повторные сборки) ───
       - name: Cache toolchains
@@ -77,7 +98,7 @@ jobs:
           cd kernel
 
           # Очистить localversion чтобы не добавлялся суффикс -dirty
-          find . -name "localversion*" -exec truncate -s 0 {} \;
+         git checkout -- .
 
           # Выбрать конфиг: device_defconfig (с телефона) или rosemary_defconfig (из исходников)
           if [ -f arch/arm64/configs/device_defconfig ]; then
