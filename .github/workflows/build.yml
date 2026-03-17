@@ -199,6 +199,7 @@ jobs:
       # ─── Распаковка и пересборка boot.img ───
       - name: Repack boot.img
         run: |
+          rm -rf boot_work
           mkdir boot_work && cd boot_work
           ../magiskboot unpack ../boot_original.img
           echo "Оригинальный kernel: $(stat -c%s kernel) байт"
@@ -206,7 +207,7 @@ jobs:
           echo "Новый kernel: $(stat -c%s kernel) байт"
           ../magiskboot repack ../boot_original.img
           mv new-boot.img ../boot_new.img
-
+      
       # ─── Финальная проверка ───
       - name: Verify final boot.img
         run: |
