@@ -136,12 +136,9 @@ jobs:
           export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
           cd kernel
           git checkout -- .
-          make O=out ARCH=arm64 rosemary_defconfig
 
-          scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE
-          scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_GZIP
-          scripts/config --file out/.config -d CONFIG_DEBUG_INFO
-          scripts/config --file out/.config -d CONFIG_DEBUG_INFO_REDUCED
+          echo ">>> Используем конфиг извлечённый из оригинального ядра"
+          make O=out ARCH=arm64 extracted_defconfig
 
           make O=out ARCH=arm64 \
             CC=clang \
@@ -150,8 +147,8 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             olddefconfig
 
-          echo "=== Проверка DEBUG_INFO ==="
-          grep "CONFIG_DEBUG_INFO" out/.config
+          echo "=== Опций =y ==="
+          grep -c "=y" out/.config
 
       # ─── Проверка конфигурации ───
       - name: Verify config
