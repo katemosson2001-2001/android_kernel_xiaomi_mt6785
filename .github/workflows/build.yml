@@ -100,40 +100,14 @@ jobs:
           make O=out ARCH=arm64 rosemary_defconfig
           scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE
           scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_GZIP
+          scripts/config --file out/.config -d CONFIG_DEBUG_INFO
+          scripts/config --file out/.config -e CONFIG_DEBUG_INFO_REDUCED
           make O=out ARCH=arm64 \
             CC=clang \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             olddefconfig
-
-      - name: Diagnose size difference
-        run: |
-          cd kernel
-
-          echo "=== DEBUG_INFO (главная причина раздутия) ==="
-          grep "CONFIG_DEBUG_INFO" out/.config
-
-          echo ""
-          echo "=== Количество =y и =m опций ==="
-          echo -n "Built-in (=y): "
-          grep -c "=y" out/.config
-          echo -n "Modules (=m): "
-          grep -c "=m" out/.config
-
-          echo ""
-          echo "=== Ключевые опции размера ==="
-          grep -E "CONFIG_DEBUG_INFO|CONFIG_DEBUG_KERNEL|CONFIG_KASAN|CONFIG_KCOV|CONFIG_FTRACE|CONFIG_FUNCTION_TRACER|CONFIG_UNUSED_SYMBOLS|CONFIG_KALLSYMS_ALL" out/.config
-
-          echo ""
-          echo "=== Попробуем собрать rosemary_defconfig без изменений ==="
-          make O=out_ref ARCH=arm64 rosemary_defconfig 2>/dev/null
-          echo -n "rosemary =y: "
-          grep -c "=y" out_ref/.config
-          echo -n "rosemary =m: "
-          grep -c "=m" out_ref/.config
-          grep "CONFIG_DEBUG_INFO" out_ref/.config
-          rm -rf out_ref
 
       # ─── Проверка конфигурации ───
       - name: Verify config
@@ -195,55 +169,15 @@ jobs:
           chmod +x magiskboot
 
       # ─── Распаковка и пересборка boot.img ───
-      - name: Diagnostic repack
+      - name: Repack boot.img
         run: |
           mkdir boot_work && cd boot_work
           ../magiskboot unpack ../boot_original.img
-
-          echo "=== СРАВНЕНИЕ ЯДЕР ==="
-          echo "Оригинал: $(stat -c%s kernel) байт"
-          xxd kernel | head -5
-          file kernel
-
-          echo ""
-          NEW_KERNEL="../kernel/out/arch/arm64/boot/Image"
-          echo "Новое:     $(stat -c%s $NEW_KERNEL) байт"
-          xxd $NEW_KERNEL | head -5
-          file $NEW_KERNEL
-
-          echo ""
-          echo "=== Первые 16 байт оригинала (hex) ==="
-          od -A x -t x1z -N 64 kernel
-
-          echo ""
-          echo "=== Первые 16 байт нового (hex) ==="
-          od -A x -t x1z -N 64 $NEW_KERNEL
-
-          echo ""
-          echo "=== Проверяем: есть ли Image.gz или Image.gz-dtb ==="
-          ls -lh ../kernel/out/arch/arm64/boot/Image* 2>/dev/null
-
-          echo ""
-          echo "=== Проверяем формат оригинального kernel ==="
-          # Проверим, не содержит ли оригинал DTB в конце
-          ORIG_SIZE=$(stat -c%s kernel)
-          tail -c 1000 kernel | strings | grep -i "dtb\|device.tree\|mediatek\|mt6785" | head -5 || echo "DTB-строк в конце нет"
-
-          echo ""
-          echo "=== Magic bytes оригинала ==="
-          hexdump -C -n 16 kernel
-
-          echo ""
-          echo "=== Magic bytes нового ==="
-          hexdump -C -n 16 $NEW_KERNEL
-
-          echo ""
-          echo "=== Пробуем repack с Image.gz вместо Image ==="
-          if [ -f ../kernel/out/arch/arm64/boot/Image.gz ]; then
-            echo "Image.gz найден: $(stat -c%s ../kernel/out/arch/arm64/boot/Image.gz) байт"
-          else
-            echo "Image.gz НЕ найден"
-          fi
+          echo "Оригинальный kernel: $(stat -c%s kernel) байт"
+          cp ../kernel/out/arch/arm64/boot/Image kernel
+          echo "Новый kernel: $(stat -c%s kernel) байт"
+          ../magiskboot repack ../boot_original.img
+          mv new-boot.img ../boot_new.img
 
       # ─── Финальная проверка ───
       - name: Verify final boot.img
