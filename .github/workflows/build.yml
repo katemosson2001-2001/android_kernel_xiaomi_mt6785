@@ -40,13 +40,20 @@ jobs:
       - name: Download Clang toolchain
         run: |
           if [ ! -d toolchain/clang ]; then
-            mkdir -p toolchain/clang
-            cd toolchain/clang
-            wget -q --show-progress -O clang.tar.gz \
-              https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r563880c.tar.gz
-            tar xf clang.tar.gz
-            rm clang.tar.gz
-            cd ../..
+            mkdir -p toolchain
+            # Скачиваем AOSP clang-r563880c через зеркало
+            git clone --depth=1 \
+              https://gitlab.com/crdroidandroid/android_prebuilts_clang_host_linux-x86_clang-r563880c.git \
+              toolchain/clang \
+              || {
+                echo "=== Зеркало недоступно, пробуем альтернативу ==="
+                rm -rf toolchain/clang
+                git clone --depth=1 -b main \
+                  https://github.com/AkaneTan/aosp-clang.git \
+                  toolchain/clang-repo
+                mv toolchain/clang-repo/clang-r563880c toolchain/clang
+                rm -rf toolchain/clang-repo
+              }
           fi
           echo "=== Версия Clang ==="
           toolchain/clang/bin/clang --version | head -2
