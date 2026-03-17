@@ -96,33 +96,10 @@ jobs:
         run: |
           export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
           cd kernel
-
-          # Очистить localversion чтобы не добавлялся суффикс -dirty
           git checkout -- .
-
-          # Выбрать конфиг: device_defconfig (с телефона) или rosemary_defconfig (из исходников)
-          if [ -f arch/arm64/configs/device_defconfig ]; then
-            echo ">>> Используем device_defconfig (снятый с телефона)"
-            DEFCONFIG=device_defconfig
-          else
-            echo ">>> device_defconfig не найден, используем rosemary_defconfig"
-            DEFCONFIG=rosemary_defconfig
-          fi
-
-          # Создать базовую конфигурацию
-          make O=out ARCH=arm64 ${DEFCONFIG}
-
-          # Включить драйвер USB Ethernet RTL8152 и его зависимости
-          scripts/config --file out/.config -e CONFIG_USB_RTL8152
-          scripts/config --file out/.config -e CONFIG_USB_NET_DRIVERS
-          scripts/config --file out/.config -e CONFIG_MII
-          scripts/config --file out/.config -e CONFIG_USB_USBNET
-
-          # КРИТИЧНО: отключить appended DTB — устройство использует отдельный DTB
+          make O=out ARCH=arm64 rosemary_defconfig
           scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE
           scripts/config --file out/.config -d CONFIG_BUILD_ARM64_APPENDED_DTB_IMAGE_GZIP
-
-          # Пересчитать все зависимости
           make O=out ARCH=arm64 \
             CC=clang \
             CLANG_TRIPLE=aarch64-linux-gnu- \
