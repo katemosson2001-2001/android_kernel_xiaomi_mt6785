@@ -91,6 +91,36 @@ jobs:
               toolchain/gcc32
           fi
 
+      # ─── Скачивание оригинального boot.img ───
+      - name: Download original boot.img
+        run: |
+          wget -q --show-progress -O boot_original.img \
+            https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
+          echo "Размер: $(stat -c%s boot_original.img) байт"
+
+      - name: Extract original kernel config
+        run: |
+          cd boot_work 2>/dev/null || {
+            mkdir boot_work && cd boot_work
+            ../magiskboot unpack ../boot_original.img
+          }
+          cd ../kernel
+
+          echo "=== Извлекаем конфиг из оригинального ядра ==="
+          scripts/extract-ikconfig ../boot_work/kernel > ../original_config 2>/dev/null && {
+            echo "Конфиг извлечён! Строк: $(wc -l < ../original_config)"
+            echo ""
+            echo "=== DEBUG_INFO в оригинале ==="
+            grep "CONFIG_DEBUG_INFO" ../original_config
+            echo ""
+            echo "=== Количество =y опций ==="
+            echo -n "Оригинал: "
+            grep -c "=y" ../original_config
+            echo ""
+            echo "=== Копируем как defconfig ==="
+            cp ../original_config arch/arm64/configs/extracted_defconfig
+          } || echo "ОШИБКА: CONFIG_IKCONFIG не включен в оригинале"
+
       # ─── Подготовка конфигурации ядра ───
       - name: Configure kernel
         run: |
@@ -156,13 +186,6 @@ jobs:
           find out/arch/arm64/boot/dts -name "*.dtb" 2>/dev/null | head -20
           find out/arch/arm64/boot/dts -name "*.dtb" 2>/dev/null | wc -l
           echo "DTB файлов найдено"
-
-      # ─── Скачивание оригинального boot.img ───
-      - name: Download original boot.img
-        run: |
-          wget -q --show-progress -O boot_original.img \
-            https://mirrors.dotsrc.org/lineageos/full/rosemary/20260311/boot.img
-          echo "Размер: $(stat -c%s boot_original.img) байт"
 
       # ─── Скачивание magiskboot ───
       - name: Get magiskboot
