@@ -160,11 +160,31 @@ jobs:
           echo ">>> Используем конфиг из оригинального ядра"
           make O=out ARCH=arm64 extracted_defconfig
 
+          # RTL8152/8153/8156 (Realtek)
+          scripts/config --file out/.config -e CONFIG_USB_RTL8152
+          # ASIX AX88179/AX88178A
+          scripts/config --file out/.config -e CONFIG_USB_NET_AX88179_178A
+          # ASIX AX88772/AX88178
+          scripts/config --file out/.config -e CONFIG_USB_NET_AX8817X
+          # CDC Ethernet
+          scripts/config --file out/.config -e CONFIG_USB_NET_CDCETHER
+          # CDC NCM
+          scripts/config --file out/.config -e CONFIG_USB_NET_CDC_NCM
+          # RNDIS host
+          scripts/config --file out/.config -e CONFIG_USB_NET_RNDIS_HOST
+          # Зависимости
+          scripts/config --file out/.config -e CONFIG_USB_NET_DRIVERS
+          scripts/config --file out/.config -e CONFIG_USB_USBNET
+          scripts/config --file out/.config -e CONFIG_MII
+
           make O=out ARCH=arm64 \
             LLVM=1 \
             LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-gnu- \
             olddefconfig
+
+          echo "=== Проверка USB Ethernet ==="
+          grep -E "RTL8152|AX88179|AX8817X|CDCETHER|CDC_NCM|RNDIS_HOST|USB_USBNET" out/.config
 
       # ─── Проверка конфигурации ───
       - name: Verify config
