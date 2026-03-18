@@ -124,47 +124,31 @@ jobs:
             cp ../original_config arch/arm64/configs/extracted_defconfig
           } || echo "ОШИБКА: CONFIG_IKCONFIG не включен в оригинале"
 
-      - name: Check MTK header
-        run: |
-          echo "=== Проверяем MTK заголовок в оригинальном ядре ==="
-          cd boot_work
-          # Оригинальный kernel из boot.img (после gunzip magiskboot-ом)
-          echo "Первые 64 байта оригинала:"
-          hexdump -C -n 64 kernel
-
-          echo ""
-          echo "=== Ищем KERNEL magic ==="
-          strings kernel | head -5
-
-          echo ""
-          echo "=== Проверяем наличие mkimage в kenv.mk ==="
-          grep -r "MTK_HEADER_SUPPORT\|mkimage\|KERNEL_MAKE_OPTION" ../kernel/Android.mk ../kernel/kenv.mk 2>/dev/null | head -20
-
-          echo ""
-          echo "=== KERNEL_MAKE_OPTION в kenv.mk ==="
-          cat ../kernel/kenv.mk 2>/dev/null | head -50
-
-      - name: Check kenv and build system
+      - name: Check build configs
         run: |
           cd kernel
-          echo "=== kenv.mk ==="
-          cat kenv.mk 2>/dev/null || echo "kenv.mk не найден"
+          echo "=== build.config файлы ==="
+          ls -la build.config* 2>/dev/null
 
           echo ""
-          echo "=== KERNEL_MAKE_OPTION ==="
-          grep "KERNEL_MAKE_OPTION" kenv.mk 2>/dev/null || echo "Не найдено"
+          echo "=== build.config.mtk.aarch64 ==="
+          cat build.config.mtk.aarch64 2>/dev/null || echo "Не найден"
 
           echo ""
-          echo "=== MTK_HEADER_SUPPORT ==="
-          grep -r "MTK_HEADER_SUPPORT" . --include="*.mk" 2>/dev/null | head -10
+          echo "=== build.config.mtk.aarch64.gcc ==="
+          cat build.config.mtk.aarch64.gcc 2>/dev/null || echo "Не найден"
 
           echo ""
-          echo "=== Проверяем vendor/lineage kernel.mk ==="
-          find / -path "*/vendor/lineage/build/tasks/kernel.mk" 2>/dev/null | head -5
+          echo "=== build.config.mtk.aarch64.tiramisu ==="
+          cat build.config.mtk.aarch64.tiramisu 2>/dev/null || echo "Не найден"
 
           echo ""
-          echo "=== Проверяем Android.mk в ядре ==="
-          grep -A5 "mkimage\|MTK_HEADER" Android.mk 2>/dev/null | head -20
+          echo "=== Все build.config* файлы ==="
+          for f in build.config*; do
+            echo "--- $f ---"
+            cat "$f" 2>/dev/null
+            echo ""
+          done
 
       # ─── Подготовка конфигурации ядра ───
       - name: Configure kernel
