@@ -144,6 +144,28 @@ jobs:
           echo "=== KERNEL_MAKE_OPTION в kenv.mk ==="
           cat ../kernel/kenv.mk 2>/dev/null | head -50
 
+      - name: Check kenv and build system
+        run: |
+          cd kernel
+          echo "=== kenv.mk ==="
+          cat kenv.mk 2>/dev/null || echo "kenv.mk не найден"
+
+          echo ""
+          echo "=== KERNEL_MAKE_OPTION ==="
+          grep "KERNEL_MAKE_OPTION" kenv.mk 2>/dev/null || echo "Не найдено"
+
+          echo ""
+          echo "=== MTK_HEADER_SUPPORT ==="
+          grep -r "MTK_HEADER_SUPPORT" . --include="*.mk" 2>/dev/null | head -10
+
+          echo ""
+          echo "=== Проверяем vendor/lineage kernel.mk ==="
+          find / -path "*/vendor/lineage/build/tasks/kernel.mk" 2>/dev/null | head -5
+
+          echo ""
+          echo "=== Проверяем Android.mk в ядре ==="
+          grep -A5 "mkimage\|MTK_HEADER" Android.mk 2>/dev/null | head -20
+
       # ─── Подготовка конфигурации ядра ───
       - name: Configure kernel
         run: |
