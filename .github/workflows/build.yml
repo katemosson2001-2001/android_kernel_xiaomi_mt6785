@@ -47,6 +47,39 @@ jobs:
           head -5 Makefile
           grep "EXTRAVERSION" Makefile | head -3
 
+      - name: Check LineageOS device config
+        run: |
+          echo "=== Проверяем kernel config fragments ==="
+          find kernel/ -name "*.cfg" -path "*/configs/*" | head -20
+
+          echo ""
+          echo "=== Проверяем Makefile флаги ==="
+          grep -r "KCFLAGS\|KAFLAGS\|LDFLAGS" kernel/Makefile | head -10
+
+          echo ""
+          echo "=== Проверяем mediatek platform Makefile ==="
+          cat kernel/arch/arm64/Makefile | head -30
+
+          echo ""
+          echo "=== CONFIG_LTO в извлечённом конфиге ==="
+          grep -i "LTO" kernel/arch/arm64/configs/extracted_defconfig 2>/dev/null || echo "extracted_defconfig ещё не создан"
+
+          echo ""
+          echo "=== Сравниваем количество =y между extracted и rosemary ==="
+          cd kernel
+          make O=out_rose ARCH=arm64 rosemary_defconfig 2>/dev/null
+          echo -n "rosemary =y: "
+          grep -c "=y" out_rose/.config
+          if [ -f arch/arm64/configs/extracted_defconfig ]; then
+            make O=out_ext ARCH=arm64 extracted_defconfig 2>/dev/null
+            echo -n "extracted =y: "
+            grep -c "=y" out_ext/.config
+            echo ""
+            echo "=== Различия между конфигами ==="
+            diff <(grep "=y" out_rose/.config | sort) <(grep "=y" out_ext/.config | sort) | head -40
+          fi
+          rm -rf out_rose out_ext
+
       # ─── Кэширование тулчейнов (ускоряет повторные сборки) ───
       - name: Cache toolchains
         uses: actions/cache@v4
