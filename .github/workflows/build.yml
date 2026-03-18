@@ -138,8 +138,8 @@ jobs:
           scripts/config --file out/.config -e CONFIG_CC_OPTIMIZE_FOR_SIZE
 
           make O=out ARCH=arm64 \
-            CC=clang \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
+            LLVM=1 \
+            LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             olddefconfig
@@ -167,13 +167,13 @@ jobs:
           export PATH="$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc64/bin:$(pwd)/toolchain/gcc32/bin:$PATH"
           cd kernel
           make O=out ARCH=arm64 \
-            CC=clang \
-            CLANG_TRIPLE=aarch64-linux-gnu- \
+            LLVM=1 \
+            LLVM_IAS=1 \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             LOCALVERSION="" \
             -j$(nproc) 2>&1 | tail -30
-
+            
       # ─── Проверка результатов сборки ───
       - name: Verify build outputs
         run: |
