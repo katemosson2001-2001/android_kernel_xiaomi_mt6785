@@ -157,23 +157,14 @@ jobs:
           cd kernel
           git checkout -- .
 
-          echo ">>> Используем конфиг извлечённый из оригинального ядра"
+          echo ">>> Используем конфиг из оригинального ядра"
           make O=out ARCH=arm64 extracted_defconfig
-
-          scripts/config --file out/.config -d CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
-          scripts/config --file out/.config -e CONFIG_CC_OPTIMIZE_FOR_SIZE
 
           make O=out ARCH=arm64 \
             LLVM=1 \
             LLVM_IAS=1 \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
             olddefconfig
-
-          echo "=== Optimization ==="
-          grep "CONFIG_CC_OPTIMIZE" out/.config
-          echo "=== Опций =y ==="
-          grep -c "=y" out/.config
 
       # ─── Проверка конфигурации ───
       - name: Verify config
@@ -195,8 +186,7 @@ jobs:
           make O=out ARCH=arm64 \
             LLVM=1 \
             LLVM_IAS=1 \
-            CROSS_COMPILE=aarch64-linux-android- \
-            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            CROSS_COMPILE=aarch64-linux-gnu- \
             LOCALVERSION="" \
             -j$(nproc) 2>&1 | tail -30
             
