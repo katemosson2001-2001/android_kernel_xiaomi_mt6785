@@ -124,6 +124,26 @@ jobs:
             cp ../original_config arch/arm64/configs/extracted_defconfig
           } || echo "ОШИБКА: CONFIG_IKCONFIG не включен в оригинале"
 
+      - name: Check MTK header
+        run: |
+          echo "=== Проверяем MTK заголовок в оригинальном ядре ==="
+          cd boot_work
+          # Оригинальный kernel из boot.img (после gunzip magiskboot-ом)
+          echo "Первые 64 байта оригинала:"
+          hexdump -C -n 64 kernel
+
+          echo ""
+          echo "=== Ищем KERNEL magic ==="
+          strings kernel | head -5
+
+          echo ""
+          echo "=== Проверяем наличие mkimage в kenv.mk ==="
+          grep -r "MTK_HEADER_SUPPORT\|mkimage\|KERNEL_MAKE_OPTION" ../kernel/Android.mk ../kernel/kenv.mk 2>/dev/null | head -20
+
+          echo ""
+          echo "=== KERNEL_MAKE_OPTION в kenv.mk ==="
+          cat ../kernel/kenv.mk 2>/dev/null | head -50
+
       # ─── Подготовка конфигурации ядра ───
       - name: Configure kernel
         run: |
