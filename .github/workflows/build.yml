@@ -62,18 +62,12 @@ jobs:
         run: |
           if [ ! -d toolchain/clang ]; then
             mkdir -p toolchain
-            echo "=== Попытка 1: Google Gitiles ==="
-            mkdir -p toolchain/clang
-            if curl -L --fail --retry 3 --max-time 300 \
-              -o /tmp/clang.tar.gz \
-              "https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/main/clang-r563880c.tar.gz"; then
-              tar xf /tmp/clang.tar.gz -C toolchain/clang
-              rm /tmp/clang.tar.gz
-            else
-              echo "=== Попытка 2: Gitea зеркало ==="
-              rm -rf toolchain/clang
-              git clone --depth=1 https://gitea.com/GustavoMends/r563880.git toolchain/clang
-            fi
+            echo "=== Скачиваем Android NDK r29 (содержит clang-r563880c) ==="
+            wget -q --show-progress -O ndk.zip \
+              "https://dl.google.com/android/repository/android-ndk-r29-linux.zip"
+            unzip -q ndk.zip "android-ndk-r29/toolchains/llvm/prebuilt/linux-x86_64/*" -d /tmp/
+            mv /tmp/android-ndk-r29/toolchains/llvm/prebuilt/linux-x86_64 toolchain/clang
+            rm -rf ndk.zip /tmp/android-ndk-r29
           fi
           echo "=== Версия Clang ==="
           toolchain/clang/bin/clang --version | head -2
