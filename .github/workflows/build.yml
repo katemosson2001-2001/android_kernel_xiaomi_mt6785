@@ -29,14 +29,14 @@ jobs:
           echo "=== HEAD коммит ==="
           git log --oneline -1
 
-          echo "=== Ищем коммит gb74ec728658f ==="
-          git log --all --oneline | grep "gb74ec728658f" || echo "Не найден в shallow clone"
+          echo "=== Ищем коммит b74ec728658f ==="
+          git log --all --oneline | grep "b74ec728658f" || echo "Не найден в shallow clone"
 
           # Пробуем переключиться на нужный коммит
-          git checkout gb74ec728658f 2>/dev/null && echo "Переключено на gb74ec728658f" || {
+          git checkout b74ec728658f 2>/dev/null && echo "Переключено на b74ec728658f" || {
             echo "Коммит не найден в shallow clone, скачиваем полную историю..."
             git fetch --unshallow
-            git checkout gb74ec728658f && echo "Переключено на gb74ec728658f" || echo "КОММИТ НЕ НАЙДЕН В РЕПОЗИТОРИИ"
+            git checkout b74ec728658f && echo "Переключено на b74ec728658f" || echo "КОММИТ НЕ НАЙДЕН В РЕПОЗИТОРИИ"
           }
 
           echo ""
